@@ -1,15 +1,18 @@
 export interface Appointment {
-  id?: number;
-  patientName: string;
-  patientEmail: string;
-  patientPhone: string;
-  doctorId: number;
-  doctorName: string;
-  department: string;
+  appointmentId: number;
   appointmentDate: string;
   appointmentTime: string;
-  status: 'Pending' | 'Confirmed' | 'Cancelled' | 'Completed';
-  symptoms?: string;
-  notes?: string;
-  createdAt: string;
+  isFirstVisit: boolean;
+  naration: string;
+  name: string;
+  patientId: number;
+  mobileNo: string;
+  isDone: boolean;
+  appointmentNo: number;
+}
+
+export interface AppointmentResponse {
+  message: string;
+  result: boolean;
+  data: Appointment[];
 } 

@@ -1,97 +1,110 @@
 import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { Appointment } from '../models/appointment.model';
+import { HttpClient } from '@angular/common/http';
+import { Observable, map, catchError, of } from 'rxjs';
+import { Appointment, AppointmentResponse } from '../models/appointment.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AppointmentService {
-  private readonly STORAGE_KEY = 'appointments';
-  private nextId = 1;
+  private readonly BASE_URL = '/api/HospitalAppointment';
 
-  constructor() {
-    const appointments = this.getStoredAppointments();
-    if (appointments.length > 0) {
-      this.nextId = Math.max(...appointments.map(a => a.id || 0)) + 1;
-    }
+  constructor(private http: HttpClient) {}
+
+  getAllAppointments(): Observable<Appointment[]> {
+    return this.http.get<AppointmentResponse>(`${this.BASE_URL}/GetAllAppointments`).pipe(
+      map(response => {
+        if (!response.result || !response.data) {
+          return [];
+        }
+        return response.data;
+      }),
+      catchError(error => {
+        console.error('Error fetching appointments:', error);
+        return of([]);
+      })
+    );
   }
 
-  private getStoredAppointments(): Appointment[] {
-    const appointments = localStorage.getItem(this.STORAGE_KEY);
-    return appointments ? JSON.parse(appointments) : [];
+  getTodaysAppointments(): Observable<Appointment[]> {
+    return this.getAllAppointments().pipe(
+      map(appointments => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        return appointments.filter(appointment => {
+          const appointmentDate = new Date(appointment.appointmentDate);
+          appointmentDate.setHours(0, 0, 0, 0);
+          return appointmentDate.getTime() === today.getTime();
+        });
+      })
+    );
   }
 
-  private saveAppointments(appointments: Appointment[]): void {
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(appointments));
+  getUpcomingAppointments(): Observable<Appointment[]> {
+    return this.getAllAppointments().pipe(
+      map(appointments => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        return appointments.filter(appointment => {
+          const appointmentDate = new Date(appointment.appointmentDate);
+          appointmentDate.setHours(0, 0, 0, 0);
+          return appointmentDate.getTime() >= today.getTime();
+        }).sort((a, b) => 
+          new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime()
+        );
+      })
+    );
   }
 
-  getAppointments(): Observable<Appointment[]> {
-    return of(this.getStoredAppointments());
+  getAppointmentsByPatientId(patientId: number): Observable<Appointment[]> {
+    return this.getAllAppointments().pipe(
+      map(appointments => appointments.filter(a => a.patientId === patientId))
+    );
   }
 
-  getAppointment(id: number): Observable<Appointment | undefined> {
-    const appointments = this.getStoredAppointments();
-    return of(appointments.find(a => a.id === id));
+  createAppointment(appointment: {
+    name: string;
+    mobileNo: string;
+    city: string;
+    age: number;
+    gender: string;
+    appointmentDate: string;
+    appointmentTime: string;
+    isFirstVisit: boolean;
+    naration: string;
+  }): Observable<Appointment> {
+    return this.http.post<AppointmentResponse>(`${this.BASE_URL}/AddNewAppointment`, appointment).pipe(
+      map(response => {
+        if (!response.result) {
+          throw new Error(response.message || 'Failed to create appointment');
+        }
+        return response.data[0];
+      }),
+      catchError(error => {
+        console.error('Error creating appointment:', error);
+        throw new Error('Failed to create appointment. Please try again later.');
+      })
+    );
   }
 
-  createAppointment(appointment: Appointment): Observable<Appointment> {
-    const appointments = this.getStoredAppointments();
-    const newAppointment = {
-      ...appointment,
-      id: this.nextId++,
-      createdAt: new Date().toISOString(),
-      status: 'Pending' as const
+  updateAppointmentStatus(appointmentId: number, isDone: boolean): Observable<void> {
+    const updateData = {
+      appointmentId,
+      isDone
     };
-    appointments.push(newAppointment);
-    this.saveAppointments(appointments);
-    return of(newAppointment);
-  }
 
-  updateAppointment(appointment: Appointment): Observable<Appointment> {
-    const appointments = this.getStoredAppointments();
-    const index = appointments.findIndex(a => a.id === appointment.id);
-    if (index === -1) throw new Error('Appointment not found');
-    appointments[index] = appointment;
-    this.saveAppointments(appointments);
-    return of(appointment);
-  }
-
-  deleteAppointment(id: number): Observable<void> {
-    const appointments = this.getStoredAppointments();
-    const filteredAppointments = appointments.filter(a => a.id !== id);
-    this.saveAppointments(filteredAppointments);
-    return of(void 0);
-  }
-
-  getAppointmentsByDoctor(doctorId: number): Observable<Appointment[]> {
-    const appointments = this.getStoredAppointments();
-    return of(appointments.filter(a => a.doctorId === doctorId));
-  }
-
-  getAppointmentsByDate(date: string): Observable<Appointment[]> {
-    const appointments = this.getStoredAppointments();
-    return of(appointments.filter(a => a.appointmentDate === date));
-  }
-
-  getAppointmentStatistics(): Observable<{
-    total: number;
-    pending: number;
-    confirmed: number;
-    cancelled: number;
-    completed: number;
-    byDepartment: { [key: string]: number };
-  }> {
-    const appointments = this.getStoredAppointments();
-    return of({
-      total: appointments.length,
-      pending: appointments.filter(a => a.status === 'Pending').length,
-      confirmed: appointments.filter(a => a.status === 'Confirmed').length,
-      cancelled: appointments.filter(a => a.status === 'Cancelled').length,
-      completed: appointments.filter(a => a.status === 'Completed').length,
-      byDepartment: appointments.reduce((acc, app) => {
-        acc[app.department] = (acc[app.department] || 0) + 1;
-        return acc;
-      }, {} as { [key: string]: number })
-    });
+    return this.http.post<AppointmentResponse>(`${this.BASE_URL}/UpdateAppointmentStatus`, updateData).pipe(
+      map(response => {
+        if (!response.result) {
+          throw new Error(response.message || 'Failed to update appointment status');
+        }
+      }),
+      catchError(error => {
+        console.error('Error updating appointment status:', error);
+        throw new Error('Failed to update appointment status. Please try again later.');
+      })
+    );
   }
 } 

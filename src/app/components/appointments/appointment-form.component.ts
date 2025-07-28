@@ -3,8 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AppointmentService } from '../../services/appointment.service';
-import { DoctorService } from '../../services/doctor.service';
-import { Doctor } from '../../models/doctor.model';
 
 @Component({
   selector: 'app-appointment-form',
@@ -14,144 +12,162 @@ import { Doctor } from '../../models/doctor.model';
     <div class="container mx-auto p-6">
       <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
         <h2 class="text-2xl font-bold text-gray-800 mb-6">Schedule New Appointment</h2>
-        
+
+        <!-- Error Alert -->
+        <div *ngIf="error" class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <span class="block sm:inline">{{ error }}</span>
+          <span class="absolute top-0 bottom-0 right-0 px-4 py-3" (click)="error = null">
+            <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <title>Close</title>
+              <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+            </svg>
+          </span>
+        </div>
+
         <form [formGroup]="appointmentForm" (ngSubmit)="onSubmit()" class="space-y-6">
-          <!-- Patient Information -->
-          <div class="space-y-6">
-            <h3 class="text-lg font-medium text-gray-900">Patient Information</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Name</label>
-                <input
-                  type="text"
-                  formControlName="patientName"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  [ngClass]="{'border-red-500': appointmentForm.get('patientName')?.invalid && appointmentForm.get('patientName')?.touched}"
-                >
-                <div *ngIf="appointmentForm.get('patientName')?.invalid && appointmentForm.get('patientName')?.touched" 
-                     class="text-red-500 text-sm mt-1">
-                  Name is required
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Email</label>
-                <input
-                  type="email"
-                  formControlName="patientEmail"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  [ngClass]="{'border-red-500': appointmentForm.get('patientEmail')?.invalid && appointmentForm.get('patientEmail')?.touched}"
-                >
-                <div *ngIf="appointmentForm.get('patientEmail')?.invalid && appointmentForm.get('patientEmail')?.touched" 
-                     class="text-red-500 text-sm mt-1">
-                  Valid email is required
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Phone</label>
-                <input
-                  type="tel"
-                  formControlName="patientPhone"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  [ngClass]="{'border-red-500': appointmentForm.get('patientPhone')?.invalid && appointmentForm.get('patientPhone')?.touched}"
-                >
-                <div *ngIf="appointmentForm.get('patientPhone')?.invalid && appointmentForm.get('patientPhone')?.touched" 
-                     class="text-red-500 text-sm mt-1">
-                  Phone number is required
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Appointment Details -->
-          <div class="space-y-6">
-            <h3 class="text-lg font-medium text-gray-900">Appointment Details</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Department</label>
-                <select
-                  formControlName="department"
-                  (change)="onDepartmentChange()"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">Select Department</option>
-                  <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Doctor</label>
-                <select
-                  formControlName="doctorId"
-                  (change)="onDoctorChange($event)"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">Select Doctor</option>
-                  <option *ngFor="let doctor of filteredDoctors" [value]="doctor.id">
-                    {{ doctor.name }} - {{ doctor.specialty }}
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Date</label>
-                <input
-                  type="date"
-                  formControlName="appointmentDate"
-                  [min]="minDate"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Time</label>
-                <select
-                  formControlName="appointmentTime"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">Select Time</option>
-                  <option *ngFor="let time of availableTimes" [value]="time">{{ time }}</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Additional Information -->
-          <div class="space-y-6">
-            <h3 class="text-lg font-medium text-gray-900">Additional Information</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Patient Information -->
             <div>
-              <label class="block text-sm font-medium text-gray-700">Symptoms/Reason for Visit</label>
+              <label class="block text-sm font-medium text-gray-700">Patient Name</label>
+              <input
+                type="text"
+                formControlName="name"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                [ngClass]="{'border-red-500': appointmentForm.get('name')?.invalid && appointmentForm.get('name')?.touched}"
+              >
+              <div *ngIf="appointmentForm.get('name')?.invalid && appointmentForm.get('name')?.touched" 
+                   class="text-red-500 text-sm mt-1">
+                Name is required
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Mobile Number</label>
+              <input
+                type="tel"
+                formControlName="mobileNo"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                [ngClass]="{'border-red-500': appointmentForm.get('mobileNo')?.invalid && appointmentForm.get('mobileNo')?.touched}"
+              >
+              <div *ngIf="appointmentForm.get('mobileNo')?.invalid && appointmentForm.get('mobileNo')?.touched" 
+                   class="text-red-500 text-sm mt-1">
+                Mobile number is required
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Age</label>
+              <input
+                type="number"
+                formControlName="age"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                [ngClass]="{'border-red-500': appointmentForm.get('age')?.invalid && appointmentForm.get('age')?.touched}"
+              >
+              <div *ngIf="appointmentForm.get('age')?.invalid && appointmentForm.get('age')?.touched" 
+                   class="text-red-500 text-sm mt-1">
+                Age is required
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Gender</label>
+              <select
+                formControlName="gender"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700">City</label>
+              <input
+                type="text"
+                formControlName="city"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                [ngClass]="{'border-red-500': appointmentForm.get('city')?.invalid && appointmentForm.get('city')?.touched}"
+              >
+              <div *ngIf="appointmentForm.get('city')?.invalid && appointmentForm.get('city')?.touched" 
+                   class="text-red-500 text-sm mt-1">
+                City is required
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700">First Visit?</label>
+              <div class="mt-1">
+                <label class="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    formControlName="isFirstVisit"
+                    class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  >
+                  <span class="ml-2">Yes, this is the first visit</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Appointment Details -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Appointment Date</label>
+              <input
+                type="date"
+                formControlName="appointmentDate"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                [ngClass]="{'border-red-500': appointmentForm.get('appointmentDate')?.invalid && appointmentForm.get('appointmentDate')?.touched}"
+              >
+              <div *ngIf="appointmentForm.get('appointmentDate')?.invalid && appointmentForm.get('appointmentDate')?.touched" 
+                   class="text-red-500 text-sm mt-1">
+                Appointment date is required
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Appointment Time</label>
+              <input
+                type="time"
+                formControlName="appointmentTime"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                [ngClass]="{'border-red-500': appointmentForm.get('appointmentTime')?.invalid && appointmentForm.get('appointmentTime')?.touched}"
+              >
+              <div *ngIf="appointmentForm.get('appointmentTime')?.invalid && appointmentForm.get('appointmentTime')?.touched" 
+                   class="text-red-500 text-sm mt-1">
+                Appointment time is required
+              </div>
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700">Notes</label>
               <textarea
-                formControlName="symptoms"
+                formControlName="naration"
                 rows="3"
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               ></textarea>
             </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700">Notes</label>
-              <textarea
-                formControlName="notes"
-                rows="2"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              ></textarea>
-            </div>
           </div>
 
-          <div class="flex justify-end space-x-3">
+          <div class="flex justify-end space-x-3 pt-6">
             <button
               type="button"
               (click)="onCancel()"
               class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              [disabled]="loading"
             >
               Cancel
             </button>
             <button
               type="submit"
-              [disabled]="appointmentForm.invalid"
-              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300"
+              [disabled]="!appointmentForm.valid || loading"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 flex items-center"
             >
+              <span *ngIf="loading" class="mr-2">
+                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </span>
               Schedule Appointment
             </button>
           </div>
@@ -167,84 +183,55 @@ import { Doctor } from '../../models/doctor.model';
 })
 export class AppointmentFormComponent implements OnInit {
   appointmentForm: FormGroup;
-  doctors: Doctor[] = [];
-  filteredDoctors: Doctor[] = [];
-  minDate = new Date().toISOString().split('T')[0];
-  departments = [
-    'Cardiology',
-    'Neurology',
-    'Pediatrics',
-    'Dermatology',
-    'Orthopedics',
-    'Oncology',
-    'General Medicine',
-    'Surgery',
-    'Psychiatry',
-    'Gynecology'
-  ];
-  availableTimes = [
-    '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
-    '11:00 AM', '11:30 AM', '12:00 PM', '02:00 PM',
-    '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM',
-    '04:30 PM', '05:00 PM'
-  ];
+  loading = false;
+  error: string | null = null;
 
   constructor(
     private fb: FormBuilder,
     private appointmentService: AppointmentService,
-    private doctorService: DoctorService,
     private router: Router
   ) {
     this.appointmentForm = this.fb.group({
-      patientName: ['', Validators.required],
-      patientEmail: ['', [Validators.required, Validators.email]],
-      patientPhone: ['', Validators.required],
-      department: ['', Validators.required],
-      doctorId: ['', Validators.required],
-      doctorName: [''],
+      name: ['', Validators.required],
+      mobileNo: ['', Validators.required],
+      city: ['', Validators.required],
+      age: ['', [Validators.required, Validators.min(0)]],
+      gender: ['Male', Validators.required],
       appointmentDate: ['', Validators.required],
       appointmentTime: ['', Validators.required],
-      symptoms: [''],
-      notes: ['']
+      isFirstVisit: [false],
+      naration: ['']
     });
   }
 
-  ngOnInit() {
-    this.loadDoctors();
-  }
-
-  loadDoctors() {
-    this.doctorService.getDoctors().subscribe(doctors => {
-      this.doctors = doctors;
+  ngOnInit(): void {
+    // Set default date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    this.appointmentForm.patchValue({
+      appointmentDate: tomorrow.toISOString().split('T')[0]
     });
   }
 
-  onDepartmentChange() {
-    const department = this.appointmentForm.get('department')?.value;
-    this.filteredDoctors = this.doctors.filter(doctor => 
-      doctor.specialty === department
-    );
-    this.appointmentForm.patchValue({ doctorId: '', doctorName: '' });
-  }
+  onSubmit(): void {
+    if (this.appointmentForm.invalid || this.loading) return;
 
-  onDoctorChange(event: any) {
-    const doctorId = event.target.value;
-    const doctor = this.doctors.find(d => d.id === Number(doctorId));
-    if (doctor) {
-      this.appointmentForm.patchValue({ doctorName: doctor.name });
-    }
-  }
+    this.loading = true;
+    this.error = null;
 
-  onSubmit() {
-    if (this.appointmentForm.invalid) return;
-
-    this.appointmentService.createAppointment(this.appointmentForm.value)
-      .subscribe(() => {
+    this.appointmentService.createAppointment(this.appointmentForm.value).subscribe({
+      next: () => {
         this.router.navigate(['/appointments']);
-      });
+      },
+      error: (err) => {
+        this.error = err.message || 'Failed to create appointment. Please try again later.';
+        this.loading = false;
+        console.error('Error creating appointment:', err);
+      }
+    });
   }
 
-  onCancel() {
+  onCancel(): void {
     this.router.navigate(['/appointments']);
   }
 } 

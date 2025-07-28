@@ -17,6 +17,22 @@ import { PatientService } from '../../services/patient.service';
         </a>
       </div>
 
+      <!-- Error Alert -->
+      <div *ngIf="error" class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+        <span class="block sm:inline">{{ error }}</span>
+        <span class="absolute top-0 bottom-0 right-0 px-4 py-3" (click)="error = null">
+          <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+            <title>Close</title>
+            <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+          </svg>
+        </span>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="loading" class="flex justify-center items-center py-8">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+
       <!-- Statistics -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow p-4">
@@ -37,11 +53,19 @@ import { PatientService } from '../../services/patient.service';
         </div>
       </div>
 
+      <!-- Patient List -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div *ngFor="let patient of patients" class="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div class="p-6">
+        <div *ngFor="let patient of patients" class="bg-white rounded-lg shadow-lg overflow-hidden relative">
+          <!-- Loading Overlay -->
+          <div *ngIf="isDeleting(patient.id)" class="absolute inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+          </div>
+
+          <div class="p-6" [class.opacity-50]="isDeleting(patient.id)">
             <div class="flex justify-between items-start mb-4">
-              <h2 class="text-xl font-semibold text-gray-800">{{ patient.name }}</h2>
+              <h2 class="text-xl font-semibold text-gray-800">
+                <a [routerLink]="[patient.id]" class="hover:text-blue-600">{{ patient.name }}</a>
+              </h2>
               <span [class]="getStatusClass(patient.status)">
                 {{ patient.status }}
               </span>
@@ -74,23 +98,18 @@ import { PatientService } from '../../services/patient.service';
               </div>
             </div>
 
-            <div *ngIf="patient.reports && patient.reports.length > 0" class="mt-4 pt-4 border-t border-gray-200">
-              <h3 class="text-sm font-semibold text-gray-600 mb-2">Recent Reports</h3>
-              <div class="space-y-2">
-                <div *ngFor="let report of patient.reports.slice(0, 2)" class="text-sm">
-                  <span class="text-gray-500">{{ report.date | date }}: </span>
-                  <span class="text-gray-700">{{ report.type }}</span>
-                </div>
-              </div>
-            </div>
-
             <div class="mt-6 flex space-x-3">
+              <a [routerLink]="[patient.id]" 
+                 class="flex-1 text-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                View Details
+              </a>
               <a [routerLink]="['edit', patient.id]" 
                  class="flex-1 text-center px-4 py-2 border border-blue-500 text-blue-500 rounded-lg hover:bg-blue-50">
                 Edit
               </a>
               <button (click)="deletePatient(patient.id)" 
-                      class="flex-1 px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-50">
+                      [disabled]="isDeleting(patient.id)"
+                      class="flex-1 px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed">
                 Delete
               </button>
             </div>
@@ -113,6 +132,9 @@ export class PatientListComponent implements OnInit {
     discharged: 0,
     underTreatment: 0
   };
+  loading = false;
+  error: string | null = null;
+  private deletingPatientIds: Set<number> = new Set();
 
   constructor(private patientService: PatientService) {}
 
@@ -121,16 +143,57 @@ export class PatientListComponent implements OnInit {
     this.loadStatistics();
   }
 
+  isDeleting(id: number | undefined): boolean {
+    return id !== undefined && this.deletingPatientIds.has(id);
+  }
+
   loadPatients() {
-    this.patientService.getPatients().subscribe(patients => {
-      this.patients = patients;
+    this.loading = true;
+    this.error = null;
+    this.patientService.getPatients().subscribe({
+      next: (patients) => {
+        this.patients = patients;
+        this.loading = false;
+      },
+      error: (err) => {
+        this.error = 'Failed to load patients. Please try again later.';
+        this.loading = false;
+        console.error('Error loading patients:', err);
+      }
     });
   }
 
   loadStatistics() {
-    this.patientService.getPatientStatistics().subscribe(stats => {
-      this.statistics = stats;
+    this.patientService.getPatientStatistics().subscribe({
+      next: (stats) => {
+        this.statistics = stats;
+      },
+      error: (err) => {
+        console.error('Error loading statistics:', err);
+      }
     });
+  }
+
+  deletePatient(id: number | undefined) {
+    if (!id) return;
+    
+    if (confirm('Are you sure you want to delete this patient?')) {
+      this.deletingPatientIds.add(id);
+      this.error = null;
+
+      this.patientService.deletePatient(id).subscribe({
+        next: () => {
+          this.deletingPatientIds.delete(id);
+          this.loadPatients();
+          this.loadStatistics();
+        },
+        error: (err) => {
+          this.deletingPatientIds.delete(id);
+          this.error = err.message || 'Failed to delete patient. Please try again later.';
+          console.error('Error deleting patient:', err);
+        }
+      });
+    }
   }
 
   getStatusClass(status: string): string {
@@ -144,17 +207,6 @@ export class PatientListComponent implements OnInit {
         return `${baseClasses} bg-yellow-100 text-yellow-800`;
       default:
         return `${baseClasses} bg-gray-100 text-gray-800`;
-    }
-  }
-
-  deletePatient(id: number | undefined) {
-    if (!id) return;
-    
-    if (confirm('Are you sure you want to delete this patient?')) {
-      this.patientService.deletePatient(id).subscribe(() => {
-        this.loadPatients();
-        this.loadStatistics();
-      });
     }
   }
 } 

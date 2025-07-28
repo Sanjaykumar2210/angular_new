@@ -15,6 +15,16 @@ import { PatientService } from '../../services/patient.service';
         <h2 class="text-2xl font-bold text-gray-800 mb-6">
           {{ isEditMode ? 'Edit Patient' : 'Add New Patient' }}
         </h2>
+
+        <div *ngIf="error" class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <span class="block sm:inline">{{ error }}</span>
+          <span class="absolute top-0 bottom-0 right-0 px-4 py-3" (click)="error = null">
+            <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <title>Close</title>
+              <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+            </svg>
+          </span>
+        </div>
         
         <form [formGroup]="patientForm" (ngSubmit)="onSubmit()" class="space-y-6">
           <!-- Basic Information -->
@@ -155,14 +165,21 @@ import { PatientService } from '../../services/patient.service';
               type="button"
               (click)="onCancel()"
               class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              [disabled]="loading"
             >
               Cancel
             </button>
             <button
               type="submit"
-              [disabled]="patientForm.invalid"
-              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300"
+              [disabled]="!patientForm.valid || loading"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 flex items-center"
             >
+              <span *ngIf="loading" class="mr-2">
+                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </span>
               {{ isEditMode ? 'Update' : 'Create' }}
             </button>
           </div>
@@ -177,27 +194,31 @@ import { PatientService } from '../../services/patient.service';
   `]
 })
 export class PatientFormComponent implements OnInit {
-  patientForm: FormGroup;
+  patientForm: FormGroup = this.initializeForm();
   isEditMode = false;
   patientId: number | null = null;
+  loading = false;
+  error: string | null = null;
 
   constructor(
     private fb: FormBuilder,
     private patientService: PatientService,
     private router: Router,
     private route: ActivatedRoute
-  ) {
-    this.patientForm = this.fb.group({
-      name: ['', Validators.required],
-      age: ['', [Validators.required, Validators.min(0), Validators.max(150)]],
-      gender: ['Male', Validators.required],
-      bloodGroup: ['O+', Validators.required],
-      contactNumber: ['', Validators.required],
-      email: ['', [Validators.required, Validators.email]],
-      condition: [''],
-      status: ['Admitted'],
-      admissionDate: [new Date().toISOString().split('T')[0], Validators.required],
-      address: ['']
+  ) {}
+
+  private initializeForm(patient?: Patient): FormGroup {
+    return this.fb.group({
+      name: [patient?.name || '', [Validators.required]],
+      age: [patient?.age || '', [Validators.required, Validators.min(0), Validators.max(150)]],
+      gender: [patient?.gender || 'Male', [Validators.required]],
+      bloodGroup: [patient?.bloodGroup || 'O+'],
+      contactNumber: [patient?.contactNumber || '', [Validators.required]],
+      email: [patient?.email || 'Not specified'],
+      condition: [patient?.condition || 'Not specified'],
+      status: [patient?.status || 'Admitted'],
+      admissionDate: [patient?.admissionDate || new Date().toISOString().split('T')[0]],
+      address: [patient?.address || '']
     });
   }
 
@@ -211,26 +232,59 @@ export class PatientFormComponent implements OnInit {
   }
 
   loadPatient(id: number): void {
-    this.patientService.getPatient(id).subscribe(patient => {
-      if (patient) {
-        this.patientForm.patchValue(patient);
+    this.loading = true;
+    this.error = null;
+    this.patientService.getPatient(id).subscribe({
+      next: (patient) => {
+        if (patient) {
+          // Reinitialize the form with patient data
+          this.patientForm = this.initializeForm(patient);
+        } else {
+          this.error = 'Patient not found';
+        }
+        this.loading = false;
+      },
+      error: (err) => {
+        this.error = 'Failed to load patient details';
+        this.loading = false;
+        console.error('Error loading patient:', err);
       }
     });
   }
 
   onSubmit(): void {
-    if (this.patientForm.invalid) return;
+    if (!this.patientForm.valid || this.loading) return;
 
-    const patient: Patient = this.patientForm.value;
+    const formValue = this.patientForm.value;
+    const patient: Patient = {
+      ...formValue,
+      id: this.isEditMode ? this.patientId : undefined
+    };
+
+    this.loading = true;
+    this.error = null;
     
     if (this.isEditMode && this.patientId) {
-      patient.id = this.patientId;
-      this.patientService.updatePatient(patient).subscribe(() => {
-        this.router.navigate(['/patients']);
+      this.patientService.updatePatient(patient).subscribe({
+        next: () => {
+          this.router.navigate(['/patients']);
+        },
+        error: (err) => {
+          this.error = err.message || 'Failed to update patient';
+          this.loading = false;
+          console.error('Error updating patient:', err);
+        }
       });
     } else {
-      this.patientService.createPatient(patient).subscribe(() => {
-        this.router.navigate(['/patients']);
+      this.patientService.createPatient(patient).subscribe({
+        next: () => {
+          this.router.navigate(['/patients']);
+        },
+        error: (err) => {
+          this.error = err.message || 'Failed to create patient';
+          this.loading = false;
+          console.error('Error creating patient:', err);
+        }
       });
     }
   }
