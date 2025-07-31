@@ -13,7 +13,7 @@ import { AuthService } from '../../services/auth.service';
         <div class="flex h-16 justify-between">
           <div class="flex">
             <div class="flex flex-shrink-0 items-center">
-              <a routerLink="/" class="text-xl font-bold text-gray-900">
+              <a routerLink="/dashboard" class="text-xl font-bold text-gray-900">
                 Healthcare App
               </a>
             </div>
@@ -49,17 +49,18 @@ import { AuthService } from '../../services/auth.service';
               <div class="flex items-center space-x-4">
                 <span class="text-sm text-gray-700">{{ (auth.user$ | async)?.name }}</span>
                 <button
-                  (click)="auth.logout()"
-                  class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                  (click)="handleLogout()"
+                  [disabled]="isLoggingOut"
+                  class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                 >
-                  Logout
+                  {{ isLoggingOut ? 'Logging out...' : 'Logout' }}
                 </button>
               </div>
             </ng-container>
             <ng-template #loginButton>
               <button
                 (click)="auth.login()"
-                class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
               >
                 Login
               </button>
@@ -71,5 +72,12 @@ import { AuthService } from '../../services/auth.service';
   `
 })
 export class HeaderComponent {
+  isLoggingOut = false;
+
   constructor(public auth: AuthService) {}
+
+  handleLogout(): void {
+    this.isLoggingOut = true;
+    this.auth.logout();
+  }
 } 

@@ -42,7 +42,7 @@ import { Doctor } from '../../models/doctor.model';
               </div>
               <div class="flex items-center text-gray-600">
                 <span class="mr-2">⭐</span>
-                {{ doctor.rating }} / 5
+                {{ (doctor.rating || 0).toFixed(1) }} / 5
               </div>
               <div class="flex items-center text-gray-600">
                 <span class="mr-2">💼</span>
@@ -89,8 +89,15 @@ export class DoctorListComponent implements OnInit {
   }
 
   loadDoctors() {
-    this.doctorService.getDoctors().subscribe(doctors => {
-      this.doctors = doctors;
+    console.log('Loading doctors...');
+    this.doctorService.getDoctors().subscribe({
+      next: (doctors) => {
+        console.log('Doctors loaded:', doctors);
+        this.doctors = doctors;
+      },
+      error: (error) => {
+        console.error('Error loading doctors:', error);
+      }
     });
   }
 

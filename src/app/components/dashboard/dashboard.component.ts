@@ -131,11 +131,11 @@ Chart.register(...registerables);
               <h3 class="text-xl font-semibold text-gray-800">Appointments Overview</h3>
               <div class="flex space-x-2">
                 <button (click)="updateChartView('weekly')" 
-                        [class]="chartView === 'weekly' ? 'px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-full' : 'px-3 py-1 text-sm text-gray-600 hover:bg-gray-50 rounded-full'">
+                        [class]="chartView === 'weekly' ? 'px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-full font-medium' : 'px-3 py-1 text-sm text-gray-600 hover:bg-gray-50 rounded-full'">
                   Weekly
                 </button>
                 <button (click)="updateChartView('monthly')"
-                        [class]="chartView === 'monthly' ? 'px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-full' : 'px-3 py-1 text-sm text-gray-600 hover:bg-gray-50 rounded-full'">
+                        [class]="chartView === 'monthly' ? 'px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-full font-medium' : 'px-3 py-1 text-sm text-gray-600 hover:bg-gray-50 rounded-full'">
                   Monthly
                 </button>
               </div>
@@ -298,20 +298,17 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   ngOnInit() {
     this.loadDashboardData();
+    // Set default chart view to weekly
+    this.chartView = 'weekly';
   }
 
   ngAfterViewInit() {
-    // Delay chart initialization to ensure the canvas is ready
-    setTimeout(() => {
-      this.initializeAppointmentsChart();
-    }, 0);
+    // Initialize the weekly chart immediately when dashboard opens
+    this.initializeWeeklyChart();
   }
 
   updateChartView(view: 'weekly' | 'monthly') {
     this.chartView = view;
-    if (this.chart) {
-      this.chart.destroy();
-    }
     this.initializeAppointmentsChart();
   }
 
@@ -361,84 +358,107 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    const { labels, appointments, completed } = this.getChartData();
-
+    // Destroy existing chart if it exists
     if (this.chart) {
       this.chart.destroy();
     }
 
-    this.chart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: 'Appointments',
-            data: appointments,
-            borderColor: 'rgb(59, 130, 246)',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            tension: 0.4,
-            fill: true
-          },
-          {
-            label: 'Completed',
-            data: completed,
-            borderColor: 'rgb(34, 197, 94)',
-            backgroundColor: 'rgba(34, 197, 94, 0.1)',
-            tension: 0.4,
-            fill: true
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'top',
-            labels: {
-              usePointStyle: true,
-              padding: 20,
-              font: {
-                size: 12
-              }
-            }
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            grid: {
-              display: true
+    const { labels, appointments, completed } = this.getChartData();
+
+    try {
+      this.chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Appointments',
+              data: appointments,
+              borderColor: 'rgb(59, 130, 246)',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              tension: 0.4,
+              fill: true,
+              borderWidth: 2
             },
-            ticks: {
-              font: {
-                size: 11
+            {
+              label: 'Completed',
+              data: completed,
+              borderColor: 'rgb(34, 197, 94)',
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              tension: 0.4,
+              fill: true,
+              borderWidth: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 20,
+                font: {
+                  size: 12
+                }
               }
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
             }
           },
-          x: {
-            grid: {
-              display: false
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                display: true,
+                color: 'rgba(0, 0, 0, 0.1)'
+              },
+              ticks: {
+                font: {
+                  size: 11
+                }
+              }
             },
-            ticks: {
-              font: {
-                size: 11
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                font: {
+                  size: 11
+                }
               }
             }
-          }
-        },
-        interaction: {
-          intersect: false,
-          mode: 'index'
-        },
-        elements: {
-          point: {
-            radius: 3,
-            hoverRadius: 6
+          },
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          },
+          elements: {
+            point: {
+              radius: 4,
+              hoverRadius: 6,
+              hoverBorderWidth: 2
+            }
           }
         }
-      }
-    });
+      });
+      
+      console.log('Weekly chart initialized successfully');
+    } catch (error) {
+      console.error('Error initializing chart:', error);
+    }
+  }
+
+  // New method to specifically initialize weekly chart
+  private initializeWeeklyChart() {
+    // Small delay to ensure DOM is ready
+    setTimeout(() => {
+      this.initializeAppointmentsChart();
+    }, 100);
   }
 } 

@@ -2,6 +2,31 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.1.3.
 
+## Authentication Flow
+
+This application uses Auth0 for authentication with the following features:
+
+### Login
+- Users are redirected to the login page (`/login`) when not authenticated
+- The login page automatically redirects authenticated users to the dashboard
+- All protected routes require authentication
+
+### Logout
+- Users can logout using the logout button in the header
+- Upon logout, users are automatically redirected to the login page
+- The logout process includes a loading state for better UX
+
+### Route Protection
+- All main routes (dashboard, appointments, patients, doctors) are protected by the `authGuard`
+- Unauthenticated users are automatically redirected to `/login`
+- The default route (`/`) redirects to `/login` for unauthenticated users
+- Any undefined routes (`**`) redirect to `/login`
+
+### Authentication State Management
+- The app component subscribes to authentication state changes
+- The header component only shows when the user is authenticated
+- Authentication state is managed globally through the `AuthService`
+
 ## Development server
 
 To start a local development server, run:

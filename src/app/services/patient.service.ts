@@ -159,12 +159,13 @@ export class PatientService {
     discharged: number;
     underTreatment: number;
   }> {
-    const patients = this.getStoredPatients();
-    return of({
-      total: patients.length,
-      admitted: patients.filter(p => p.status === 'Admitted').length,
-      discharged: patients.filter(p => p.status === 'Discharged').length,
-      underTreatment: patients.filter(p => p.status === 'Under Treatment').length
-    });
+    return this.getPatients().pipe(
+      map((patients) => ({
+        total: patients.length,
+        admitted: patients.filter(p => p.status === 'Admitted').length,
+        discharged: patients.filter(p => p.status === 'Discharged').length,
+        underTreatment: patients.filter(p => p.status === 'Under Treatment').length
+      }))
+    );
   }
 } 
